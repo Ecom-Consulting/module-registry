@@ -284,61 +284,59 @@ def main():
         print(f"Creating GitHub repo: {ORG}/{name}...")
         run(f'gh repo create {ORG}/{name} {visibility} --description "{description}"')
 
-    # Init git
-    run("git init -b _init", cwd=repo_dir)
+    # Init git — start on main
+    run("git init -b main", cwd=repo_dir)
     run('git config user.email "github-actions[bot]@users.noreply.github.com"', cwd=repo_dir)
     run('git config user.name "Ecom Consulting Bot"', cwd=repo_dir)
 
     if not args.no_push:
         run(f"git remote add origin git@github.com:{ORG}/{name}.git", cwd=repo_dir)
 
-    # Build each version branch
-    first_branch = True
+    # ── main branch: workflow setup only, no module code ──────────────────
+    print("Setting up branch: main (workflow only)")
+    add_register_workflow(repo_dir)
+    run("git add .", cwd=repo_dir)
+    run(f'git commit -m "chore: setup register workflow for {name}"', cwd=repo_dir)
+
+    # ── version branches: branch off main, add module code ────────────────
     for version in versions:
         print(f"Setting up branch: {version}")
-
-        # Clear any files from previous version (keep .git)
-        for item in repo_dir.iterdir():
-            if item.name == ".git":
-                continue
-            shutil.rmtree(item) if item.is_dir() else item.unlink()
+        run(f"git checkout -b {version}", cwd=repo_dir)
 
         if source_path:
             copy_from_ecom(repo_dir, name, source_path, version)
         else:
             create_fresh_scaffold(repo_dir, name, version, description)
 
-        add_register_workflow(repo_dir)
-
-        if first_branch:
-            run(f"git checkout -b {version}", cwd=repo_dir)
-            first_branch = False
-        else:
-            run(f"git checkout -b {version}", cwd=repo_dir)
-
         run("git add .", cwd=repo_dir)
         run(f'git commit -m "init: {name} for Odoo {version}"', cwd=repo_dir)
+
+        # Return to main for the next version branch
+        run("git checkout main", cwd=repo_dir)
 
     # Push all branches
     if not args.no_push:
         print("\nPushing branches...")
+        run("git push origin main", cwd=repo_dir)
         for version in versions:
             run(f"git push origin {version}", cwd=repo_dir)
 
-        default_branch = versions[-1]
-        run(f"gh repo edit {ORG}/{name} --default-branch {default_branch}")
+        # main is the default — version branches are where code lives
+        run(f"gh repo edit {ORG}/{name} --default-branch main")
 
         # Register immediately without waiting for the workflow
         register_immediately(name)
 
+        all_branches = ["main"] + versions
         print(f"\n✓ Done!")
         print(f"  Repo:     https://github.com/{ORG}/{name}")
-        print(f"  Branches: {', '.join(versions)}")
+        print(f"  Branches: {', '.join(all_branches)}")
         print(f"\n  Remember: add ORG_PAT as an org-level secret if not already set.")
         print(f"  https://github.com/organizations/{ORG}/settings/secrets/actions")
     else:
+        all_branches = ["main"] + versions
         print(f"\n✓ Local scaffold at: {repo_dir}")
-        print(f"  Branches (local only): {', '.join(versions)}")
+        print(f"  Branches (local only): {', '.join(all_branches)}")
 
 
 if __name__ == "__main__":
