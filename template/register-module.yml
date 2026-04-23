@@ -1,0 +1,14 @@
+name: Register Module
+
+on:
+  push:
+    branches:
+      - '18.0'
+      - '19.0'
+      - main
+
+jobs:
+  register:
+    uses: Ecom-Consulting/module-registry/.github/workflows/register.yml@main
+    secrets:
+      ORG_PAT: ${{ secrets.ORG_PAT }}

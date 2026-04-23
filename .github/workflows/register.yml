@@ -1,0 +1,42 @@
+name: Register Module (Reusable)
+
+on:
+  workflow_call:
+    secrets:
+      ORG_PAT:
+        required: true
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Register module in registry
+        env:
+          GH_TOKEN: ${{ secrets.ORG_PAT }}
+        run: |
+          set -euo pipefail
+          REPO_NAME="${{ github.event.repository.name }}"
+
+          # Fetch current modules.txt with its SHA for atomic update
+          FILE_DATA=$(gh api repos/Ecom-Consulting/module-registry/contents/modules.txt)
+          CURRENT_SHA=$(echo "$FILE_DATA" | jq -r '.sha')
+          CURRENT_CONTENT=$(echo "$FILE_DATA" | jq -r '.content' | base64 -d)
+
+          # Skip if already registered
+          if echo "$CURRENT_CONTENT" | grep -qx "$REPO_NAME"; then
+            echo "$REPO_NAME is already registered"
+            exit 0
+          fi
+
+          # Append, sort, deduplicate, strip blank lines
+          NEW_CONTENT=$(printf "%s\n%s\n" "$CURRENT_CONTENT" "$REPO_NAME" \
+            | sort -u | sed '/^[[:space:]]*$/d')
+          NEW_CONTENT_B64=$(printf "%s\n" "$NEW_CONTENT" | base64 | tr -d '\n')
+
+          gh api repos/Ecom-Consulting/module-registry/contents/modules.txt \
+            --method PUT \
+            --field message="register: $REPO_NAME" \
+            --field "content=$NEW_CONTENT_B64" \
+            --field sha="$CURRENT_SHA"
+
+          echo "Registered $REPO_NAME"
