@@ -1,4 +1,5 @@
-vn_address
+antbiz_ecom_theme
+ecom_slide_local_video
 payment_vietqr_by_payos
 product_backend_fuzzy_search
-antbiz_ecom_theme
+vn_address
