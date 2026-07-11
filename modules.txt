@@ -1,4 +1,5 @@
 antbiz_ecom_theme
+antbiz_tiktok_shop
 ecom_slide_local_video
 payment_vietqr_by_payos
 product_backend_fuzzy_search
